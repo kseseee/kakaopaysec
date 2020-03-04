@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 나중엔 mapper가 많아지기 때문에 이 네임스페이스와 쿼리 id를 조합해서 쿼리 찾는다. -->
+<mapper namespace="com.kakaopaysec.sjc.dao.TradeDao">
+	<resultMap id="customerResult" type="com.kakaopaysec.sjc.model.Customer">
+		<result column="YEAR" property="year" />
+		<result column="ACCOUNT_NAME" property="name" />
+		<result column="ACCOUNT_NUMBER" property="acctNo" />
+		<result column="MONEY" property="sumAmt" />
+	</resultMap>
+	<resultMap id="notTradeCustomerResult" type="com.kakaopaysec.sjc.model.NotTradeCustomer">
+		<result column="YEAR" property="year" />
+		<result column="ACCOUNT_NAME" property="name" />
+		<result column="ACCOUNT_NUMBER" property="acctNo" />
+	</resultMap>
+	<resultMap id="branchResult" type="com.kakaopaysec.sjc.model.Branch">
+		<result column="YEAR" property="year" />
+		<result column="BRANCH_NAME" property="brName" />
+		<result column="BRANCH_CODE" property="brCode" />
+		<result column="MONEY" property="sumAmt" />
+	</resultMap>
+	<resultMap id="branchNameResult" type="com.kakaopaysec.sjc.model.BranchName">
+		<result column="BRANCH_NAME" property="brName" />
+		<result column="BRANCH_CODE" property="brCode" />
+		<result column="MONEY" property="sumAmt" />
+	</resultMap>
+	
+	<select id="selectsumOfYearCustomer" resultMap="customerResult">
+		SELECT YEAR,
+	           ACCOUNT_NAME,
+	           ACCOUNT_NUMBER,
+               MONEY
+		FROM(
+			SELECT YEAR,
+                   MONEY,
+                   ACCOUNT_NUMBER,
+                   ACCOUNT_NAME,
+				   RANK() OVER(PARTITION BY YEAR ORDER BY MONEY DESC) AS RANK
+			FROM(
+				SELECT YEAR(TRADE_DATE) AS YEAR,
+				SUM(TRADE_MONEY)-SUM(COMMISSION)  AS  MONEY,
+				ACCOUNT_NUMBER,
+				(SELECT B.ACCOUNT_NAME FROM ACCOUNT B WHERE A.ACCOUNT_NUMBER = B.ACCOUNT_NUMBER) AS ACCOUNT_NAME,
+				FROM TRADE A
+				WHERE CANCEL_YN='N'
+				AND YEAR(TRADE_DATE) IN ('2018', '2019')
+				GROUP BY YEAR(TRADE_DATE ),ACCOUNT_NUMBER
+				)
+			ORDER BY RANK
+			)
+		WHERE RANK=1;
+	</select>
+	
+	<select id="selectNotTradeCustomer" resultMap="notTradeCustomerResult">
+		SELECT YEAR, ACCOUNT_NAME, ACCOUNT_NUMBER
+		FROM(
+			SELECT A.YEAR, A.ACCOUNT_NUMBER,A.ACCOUNT_NAME,
+				   NVL((SELECT B.COUNTING
+				        FROM(
+				        	SELECT YEAR(TRADE_DATE) AS YEAR, ACCOUNT_NUMBER, COUNT(*) COUNTING
+							FROM TRADE
+							WHERE CANCEL_YN='N'
+							GROUP BY YEAR(TRADE_DATE), ACCOUNT_NUMBER
+						) B
+				   WHERE A.YEAR = B.YEAR AND A.ACCOUNT_NUMBER = B.ACCOUNT_NUMBER),0) AS COUNTING
+			FROM
+			(
+				SELECT *
+				FROM ACCOUNT A LEFT OUTER JOIN
+				(
+					SELECT '2018' AS YEAR FROM DUAL UNION ALL
+					SELECT '2019' AS YEAR FROM DUAL
+				)
+			) A
+		)
+		WHERE COUNTING =0
+		ORDER BY YEAR
+	</select>
+	
+	<select id="selectRankOfBranch" resultMap="branchResult">
+		SELECT D.YEAR,
+		       C.BRANCH_NAME,
+		       C.BRANCH_CODE,
+		       D.MONEY
+		FROM BRANCH C JOIN
+		(
+			SELECT YEAR(A.TRADE_DATE) AS YEAR,
+				   SUM(A.TRADE_MONEY) AS MONEY,
+				   (SELECT B.BRANCH_CODE FROM ACCOUNT B WHERE A.ACCOUNT_NUMBER = B.ACCOUNT_NUMBER) AS BRANCH_CODE
+		FROM TRADE A
+		WHERE CANCEL_YN='N'
+		GROUP BY YEAR(A.TRADE_DATE), BRANCH_CODE
+		) D
+		ON C.BRANCH_CODE = D.BRANCH_CODE
+		ORDER BY YEAR ASC, MONEY DESC
+	</select>
+	
+	<select id="selectBranchBybranchName" resultMap="branchNameResult">
+		SELECT C.BRANCH_NAME,
+               C.BRANCH_CODE,
+               D.MONEY
+		FROM BRANCH C JOIN
+		(
+			SELECT SUM(A.TRADE_MONEY) AS MONEY,
+				      (SELECT B.BRANCH_CODE FROM ACCOUNT B WHERE A.ACCOUNT_NUMBER = B.ACCOUNT_NUMBER) AS BRANCH_CODE
+		FROM TRADE A
+		WHERE CANCEL_YN='N'
+		GROUP BY BRANCH_CODE
+		) D
+		ON C.BRANCH_CODE = D.BRANCH_CODE
+        WHERE BRANCH_NAME =#{branchName}
+	</select>
+	
+</mapper>
