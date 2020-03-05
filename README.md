@@ -2,7 +2,7 @@
 ## 개발환경
 - Spring Boot 2.2.5
 - JDK 8
-- maven 빌드
+- maven 디폴트 빌드
 
 ## 문제해결
 1, 2번
