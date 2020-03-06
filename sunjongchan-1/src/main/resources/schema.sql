@@ -5,7 +5,7 @@ CREATE TABLE BRANCH
 )
 AS 
 SELECT * 
-FROM CSVREAD('classpath:/데이터_관리점정보.csv');
+FROM CSVREAD('classpath:/branch.csv');
 
 CREATE TABLE ACCOUNT
 (
@@ -15,7 +15,7 @@ CREATE TABLE ACCOUNT
 )
 AS 
 SELECT * 
-FROM CSVREAD('classpath:/데이터_계좌정보.csv');
+FROM CSVREAD('classpath:/account.csv');
 
 CREATE TABLE TRADE
 (
@@ -28,4 +28,4 @@ CREATE TABLE TRADE
 )	
 AS 
 SELECT * 
-FROM CSVREAD('classpath:/데이터_거래내역.csv');
+FROM CSVREAD('classpath:/trade.csv');
